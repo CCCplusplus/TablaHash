@@ -1,167 +1,95 @@
 #pragma once
+#include <vector>
 #include <iostream>
+#include <algorithm>    // std::find_if
 #include "HashItem.hpp"
 
 template<typename T>
-class HashTableClass
-{
+class HashTable {
 private:
-	HashItem<T>* _table;
-	int _size, _totalitems;
+    std::vector<HashItem> _table;
+    int _size;
+    int _totalItems;
 
-	bool IsNumPrime(int val) 
-	{
-		for (int i = 2; (i * i) <= val; i++) 
-		{
-			if ((val % i) == 0) 
-			{
-				return false;
-			}
-			return true;
-		}
-	}
+    // Función hash para strings
+    //borre todo lo de int por que pues no lo necesito.
+    int HashFunc(const std::string& str)
+    {
+        int hash = 0;
+        for (int i = 0; i < (int)str.size(); i++)
+        {
+            int val = static_cast<int>(str[i]) & 0xFF;
+            hash = (hash * 256 + val) % _size;
+        }
+        return hash;
+    }
 
-	int GetNextPrimeNum(int val) 
-	{
-		for (int i = val + 1;; i++)
-		{
-			if (IsNumPrime(i)) 
-			{
-				break;
-			}
-			return i;
-		}
-	}
 
 public:
-	HashTableClass(int value) : _size(0), _totalitems(0)
-	{
-		if (value > 0) 
-		{
-			_size = GetNextPrimeNum(value);
-			_table = new HashItem<T>[_size];
-		}
-	}
+    explicit HashTable(int size) : _size(size), _totalItems(0) {
+        _table.resize(size);
+    }
 
-	~HashTableClass() 
-	{
-		if (_table != NULL) 
-		{
-			delete[] _table;
-			_table = NULL;
-		}
-	}
+    // Insertar una palabra en la tabla hash
+    bool Insert(const std::string& key, int initial_value = 1) {
+        if (_totalItems >= _size * 0.7) {  // Si la tabla está al 70% llena o más
+            Resize();
+        }
 
-	bool Insert(int key, T& obj) 
-	{
-		if (_totalitems == _size) 
-		{
-			return false;
-		}
+        int count = 0;  // Contador para manejar colisiones
+        int hash = HashFunc(key);
+        while (!_table[hash].empty() && _table[hash].getKey() != key) {
+            hash = (hash + 1) % _size;
+            count++;
+            if (count >= _size) {  // Si ya revisamos toda la tabla y no encontramos un espacio, hay un problema
+                std::cerr << "Error: la tabla está completamente llena." << std::endl;
+                return false;
+            }
+        }
 
-		int hash = HashFunc(key);
-		int step = HashFunc2(key);
-		while (_table[hash].GetKey() != -1) 
-		{
-			hash+=step;
-			hash %= _size;
-		}
-		_table[hash].SetKey(key);
-		_table[hash].SetObj(obj);
-		_totalitems++;
-		return true;
-	}
+        if (_table[hash].empty()) {
+            _table[hash].setKey(key);
+            _table[hash].setValue(initial_value);
+        }
+        else {
+            _table[hash].incrementValue();
+        }
+        _totalItems++;
 
-	bool Insert(std::string key, T& obj)
-	{
-		if (_totalitems == _size)
-		{
-			return false;
-		}
-
-		int hash = HashFunc(key);
-		while (_table[hash].GetKey() != -1)
-		{
-			hash++;
-			hash %= _size;
-		}
-		_table[hash].SetsKey(key);
-		_table[hash].SetObj(obj);
-		_totalitems++;
-		return true;
-	}
-
-	bool Find(int key, T* obj) 
-	{
-		int hash = HashFunc(key);
-		std::cout << "Hash: " << hash << std::endl;
-		int step = HashFunc2(key);
-		std::cout << "Step: " << step << std::endl;
-		int originalHash = hash;
-
-		while (_table[hash].GetKey() != -1)
-		{
-			if (_table[hash].GetKey() == key)
-			{
-				if (obj != NULL)
-					*obj = _table[hash].GetObj();
-				return true;
-			}
-
-			hash+=step;
-			hash %= _size;
-			if (originalHash == hash)
-				return false;
-		}
-		return false;
-	}
+        return true;
+    }
 
 
-	void Delete(int key) 
-	{
-		int hash = HashFunc(key);
-		int step = HashFunc2(key);
-		int originalHash = hash;
+    //Tabla dinamica
+    void Resize() {
+        std::vector<HashItem> oldTable = _table;
+        _size *= 2;
+        _table.clear();
+        _table.resize(_size);
+        for (const auto& item : oldTable) {
+            if (!item.empty()) {
+                Insert(item.getKey(), item.getValue());
+            }
+        }
+    }
 
-		while (_table[hash].Getkey() != -1) 
-		{
-			if (_table[hash].GetKey() == key) 
-			{
-				_table[hash].SetKey(-1);
-				_table[hash].SetObj(NULL);
-				_totalitems--;
-				return;
-			}
-			hash+=step;
-			hash %= _size;
-			if (originalHash == hash)
-				return;
-		}
-	}
 
-	int HashFunc(int key) 
-	{
-		return key % _size;
-	}
 
-	int HashFunc2(int key) 
-	{
-		return 3 - key % 3;
-	}
+    // Mostrar las palabras más comunes
+    void ShowCommonWords(int count) {
+        std::vector<HashItem> items;
+        for (const auto& item : _table) {
+            if (!item.empty()) {
+                items.push_back(item);
+            }
+        }
 
-	int HashFunc(std::string& str) 
-	{
-		int hash = 0;
-		for (int i = 0; i < (int)str.size(); i++) 
-		{
-			int val = (int)str[i];
-			hash = (hash * 256 + val) % _size;
-		}
-		return hash;
-	}
+        std::sort(items.begin(), items.end(), [](const HashItem& a, const HashItem& b) {
+            return a.getValue() > b.getValue();
+            });
 
-	int GetSize() { return _size; }
-
-	int GetTotalItems() { return _totalitems; }
-
+        for (int i = 0; i < count && i < items.size(); i++) {
+            std::cout << "Palabra: " << items[i].getKey() << " - Frecuencia: " << items[i].getValue() << std::endl;
+        }
+    }
 };

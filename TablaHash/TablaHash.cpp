@@ -1,26 +1,35 @@
 #include <iostream>
-#include "HashTable.hpp"
+#include <fstream>
+#include <algorithm>
+#include <cctype>
+#include "HashTable.hpp" 
 
-int main()
-{
-	HashTableClass<int> _table(5);
+int main() {
+    HashTable<std::string> table(10); //tamaño incial nada más para que no marque error.
+    std::string filename = "text.txt"; // Use las primeras 300 palabras de game of thrones.
+    std::string word;
 
-	int item = 0;
-	item = 321;
-	_table.Insert(123, item);
-	item = 345;
-	_table.Insert(543, item);
-	item = 987;
+    std::ifstream inputFile(filename);
+    if (!inputFile.is_open()) {
+        std::cerr << "No se pudo abrir el archivo." << std::endl;
+        return 1;
+    }
 
-	std::string str("cats");
-	int stringHash = _table.HashFunc(str);
+    while (inputFile >> word) {
+        // Ignorar mayusculas y convertir todas a minusculas
+        std::transform(word.begin(), word.end(), word.begin(), ::tolower);
 
-	std::cout << "String to hash " << stringHash << std::endl;
+        // Adios espacios y Saltos
+        word.erase(std::remove_if(word.begin(), word.end(), [](unsigned char c) { return !std::isalpha(c); }), word.end());
 
-	if (_table.Find(123, &item))
-		std::cout << item << std::endl;
-	else
-		std::cout << "Not Found" << std::endl;
+        // Mete la palabra
+        table.Insert(word);
+    }
+    inputFile.close();
 
-	std::cout << _table.GetSize() << std::endl;
+    // Top 10 baby
+    table.ShowCommonWords(10);
+
+    return 0;
 }
+
