@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <iostream>
-#include <algorithm>    // std::find_if
 #include "HashItem.hpp"
 
 template<typename T>
